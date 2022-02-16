@@ -5,17 +5,24 @@ import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 
 import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 
 @WebFilter(
 		urlPatterns = {"/*"}
 )
 public class OpenSessionInViewFilter implements Filter {
+		
+	private SessionFactory sf ;
+	
 	@Override
 	public void init(FilterConfig filterConfig) throws ServletException {
 
@@ -23,17 +30,24 @@ public class OpenSessionInViewFilter implements Filter {
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response,
 			FilterChain chain) throws IOException, ServletException {
-		Session session = HibernateUtil.getSessionfactory().getCurrentSession();
+		
+		 request.setCharacterEncoding("UTF-8");
+		
+		sf = (SessionFactory) request.getServletContext().getAttribute("sessionFactory");
+		request.setAttribute("session", sf.getCurrentSession());
+		
+	
 		try {
-			session.beginTransaction();
-			
+			this.sf.getCurrentSession().beginTransaction();
 			chain.doFilter(request, response);
+			this.sf.getCurrentSession().getTransaction().commit();
+			this.sf.getCurrentSession().close();
 			
-			session.getTransaction().commit();
+			
+			
 		} catch (Exception e) {
-			session.getTransaction().rollback();
+			this.sf.getCurrentSession().getTransaction().rollback();
 			e.printStackTrace();
-			chain.doFilter(request, response);
 		}
 	}
 	@Override
